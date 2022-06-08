@@ -1,6 +1,6 @@
 {
   "TranslationFolders": [ "D:\\Test", "D:\\Test2" ],
-  "DefaultLanguageCode": "en",
-  "IgnoreLanguagesCodes": [ "cs" ],
+  "DefaultLanguage": "en",
+  "IgnoreLanguages": [ "cs" ],
   "TranslationServers": [ "http://10.0.0.4:5000", "http://10.0.0.3:5000", "http://10.0.0.6:5000" ]
 }
