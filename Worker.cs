@@ -37,13 +37,17 @@ namespace TranslationService
                 List<string> folders = set.TranslationFolders;
                 foreach (string folder in folders)
                 {
+                    Dictionary<string, string> ToUpdate = new Dictionary<string, string>();
+                    List<Translation> ToAdd = new List<Translation>();
+                    List<Translation> ToRemove = new List<Translation>();
+
                     string defaultPath = Path.Combine(folder, $"{set.DefaultLanguage}.json");
-                    Dictionary<string, string> DefaultTranslation = new Dictionary<string, string>();
+                    Dictionary<string, string> defaultTranslation = new Dictionary<string, string>();
                     try
                     {
                         string json = await File.ReadAllTextAsync(defaultPath);
-                        DefaultTranslation = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
-                        if (DefaultTranslation == null)
+                        defaultTranslation = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                        if (defaultTranslation == null)
                             break;
                     }
                     catch (Exception ex)
@@ -51,7 +55,7 @@ namespace TranslationService
                         _logger.LogError($"Error opening {defaultPath} ", ex.Message);
                         break;
                     }
-                    _logger.LogInformation($"Default Translation found with {DefaultTranslation.Count} phrases");
+                    _logger.LogInformation($"Default Translation found with {defaultTranslation.Count} phrases");
 
                     // We are in one of folders now we need to do main job
 
@@ -61,25 +65,85 @@ namespace TranslationService
                     {
                         string json = await File.ReadAllTextAsync(Path.Combine(defaultPath, "old.json"));
                         oldDefault = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
-                        if (oldDefault == null)
-                            oldDefault = new Dictionary<string, string>();
+                        if (oldDefault != null)
+                        {
+                            // compare old and new translations
+                            foreach (var key in defaultTranslation.Keys)
+                            {
+                                if (oldDefault.ContainsKey(key))
+                                {
+                                    if (oldDefault[key] != defaultTranslation[key])
+                                    {
+                                        ToUpdate.Add(key, defaultTranslation[key]);
+                                        _logger.LogInformation($"Translation for {key} has changed");
+                                    }
+                                }
+                            }
+                        }
+                        // happy enough we have now list of updated phrases since last time
                     }
 
-                    // if so load and compare changes - to add and to remove
-
                     // get complete list of all translations in all files or empty dictionaries
-                    // for each generate full list of changes
+                    foreach (Language lang in forTranslation)
+                    {
+                        string LanguageCode = lang.Code;
+                        string langPath = Path.Combine(folder, $"{lang.Code}.json");
+                        Dictionary<string, string> translation = new Dictionary<string, string>();
+                        try
+                        {
+                            string json = await File.ReadAllTextAsync(langPath);
+                            translation = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                            if (translation == null) translation = new Dictionary<string, string>();
+                        }
+                        catch
+                        {
+                            translation = new Dictionary<string, string>();
+                        }
 
-                    // stoppable
+                        // check for missing keys
+                        foreach (var key in defaultTranslation.Keys)
+                        {
+                            if (!translation.ContainsKey(key))
+                            {
+                                ToAdd.Add(new Translation { Key = key, Value = defaultTranslation[key], LanguageCode = LanguageCode });
+                                //_logger.LogInformation($"Translation for {key} has been added to {lang.Name}");
+                            }
+                        }
 
-                    // make changes done
+                        // check for redundand keys
+                        foreach (var key in translation.Keys)
+                        {
+                            if (!defaultTranslation.ContainsKey(key))
+                            {
+                                ToRemove.Add(new Translation { Key = key, Value = translation[key], LanguageCode = LanguageCode });
+                                //_logger.LogInformation($"Translation for {key} has been removed from {lang.Name}");
+                            }
+                        }
 
-                    // stoppable
+                        // add updates to all languages
 
-                    // write changed files
+                        foreach (var key in ToUpdate.Keys)
+                        {
+                            foreach (var lng in forTranslation)
+                            {
+                                ToAdd.Add(new Translation { Key = key, Value = ToUpdate[key], LanguageCode = LanguageCode });
+                                //_logger.LogInformation($"Translation for {key} has been updated in {lang.Name}");
+                            }
+                        }
 
-                    await Task.Delay(60000, stoppingToken);
+                        // stoppable
+
+                        // make changes done
+
+                        // stoppable
+
+                        // write changed files
+                    }
+
+                    _logger.LogInformation($"To add: {ToAdd.Count}, to remove: {ToRemove.Count}, to update {ToUpdate.Count}");
                 }
+                await Task.Delay(60000, stoppingToken);
             }
         }
     }
+}
