@@ -23,6 +23,7 @@ namespace TranslationService
                 _logger.LogInformation("Starting checks at: {time}", DateTimeOffset.Now);
                 _logger.LogInformation($"Settings loaded: {set}", set);
                 _logger.LogInformation($"Default language: {set.DefaultLanguage}", set.DefaultLanguage);
+
                 await Task.Delay(10000, stoppingToken);
             }
         }

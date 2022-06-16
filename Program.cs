@@ -15,7 +15,7 @@ IHost host = Host.CreateDefaultBuilder(args)
     .ConfigureServices(services =>
     {
         services.AddHostedService<Worker>();
-        services.AddSingleton<ISettingsReader, SettingsReader>();
+        services.AddTransient<ISettingsReader, SettingsReader>();
     })
     .Build();
 try
