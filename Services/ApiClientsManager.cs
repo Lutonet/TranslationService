@@ -10,13 +10,15 @@ using TranslationService.Models;
 
 namespace TranslationService.Services
 {
-    public class ApiClientsManager
+    public class ApiClientsManager : IApiClientsManager
     {
         private ISettingsReader _reader;
+        private ILogger<ApiClientsManager> _logger;
 
-        public ApiClientsManager(ISettingsReader reader)
+        public ApiClientsManager(ISettingsReader reader, ILogger<ApiClientsManager> logger)
         {
             _reader=reader;
+            _logger = logger;
         }
 
         public async Task<List<HttpClient>> GetServers()
@@ -28,7 +30,7 @@ namespace TranslationService.Services
                 string server = settings.TranslationServers[i];
                 servers.Add(await TestApi(server));
             }
-            List<ServerTestResult> workingServers = servers.Where(s => s.Successful).OrderBy(s => s.ResponseTime).ToList();
+            List<ServerTestResult> workingServers = servers.Where(s => s.Successfull).OrderBy(s => s.ResponseTime).ToList();
             List<HttpClient> clients = new List<HttpClient>();
             foreach (var ser in workingServers)
             {
@@ -40,7 +42,7 @@ namespace TranslationService.Services
             return clients;
         }
 
-        private async Task<List<Language>> GetLanguagesAsync(List<HttpClient> clients)
+        public async Task<List<Language>> GetLanguagesAsync(List<HttpClient> clients)
         {
             int i = 0;
             int count = clients.Count;
@@ -58,6 +60,7 @@ namespace TranslationService.Services
                     else
                     {
                         success = true;
+                        _logger.LogInformation($"Found {langs.Count} languages");
                         return langs;
                     }
                 }
@@ -86,7 +89,7 @@ namespace TranslationService.Services
                     Console.WriteLine($"Time: {stop.Millisecond - start.Millisecond}");
                     return new ServerTestResult
                     {
-                        Successful = true,
+                        Successfull = true,
                         Server = url,
                         ResponseTime = stop.Millisecond - start.Millisecond
                     };
@@ -96,7 +99,7 @@ namespace TranslationService.Services
                     stop = DateTime.Now;
                     return new ServerTestResult
                     {
-                        Successful = false,
+                        Successfull = false,
                         Server = url,
                         ResponseTime = stop.Millisecond - start.Millisecond,
                         Error = ex.Message
@@ -107,7 +110,7 @@ namespace TranslationService.Services
             {
                 return new ServerTestResult
                 {
-                    Successful = false,
+                    Successfull = false,
                     Server = url,
 
                     Error = ex.Message

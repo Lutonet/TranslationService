@@ -9,7 +9,7 @@ namespace TranslationService.Models
     public class ServerTestResult
     {
         public string Server { get; set; } = string.Empty;
-        public bool Successful { get; set; } = false;
+        public bool Successfull { get; set; } = false;
         public string Error { get; set; } = string.Empty;
         public int ResponseTime { get; set; } = 0;
     }

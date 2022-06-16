@@ -16,6 +16,7 @@ IHost host = Host.CreateDefaultBuilder(args)
     {
         services.AddHostedService<Worker>();
         services.AddTransient<ISettingsReader, SettingsReader>();
+        services.AddSingleton<IApiClientsManager, ApiClientsManager>();
     })
     .Build();
 try

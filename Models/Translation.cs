@@ -8,8 +8,7 @@ namespace TranslationService.Models
 {
     public class Translation
     {
-        public string Key { get; set; } = string.Empty;
-        public string Value { get; set; } = string.Empty;
+        public Dictionary<string, string> Phrase { get; set; }
         public string LanguageCode { get; set; } = string.Empty;
     }
 }
