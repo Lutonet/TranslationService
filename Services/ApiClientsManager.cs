@@ -46,29 +46,24 @@ namespace TranslationService.Services
         {
             int i = 0;
             int count = clients.Count;
-            bool success = false;
-
-            while (i < count && success == false)
+            try
             {
-                try
-                {
-                    using HttpClient client = clients[i];
-                    string json = await client.GetStringAsync("/languages");
-                    List<Language> langs = JsonConvert.DeserializeObject<List<Language>>(json);
-                    if (langs == null)
-                        i++;
-                    else
-                    {
-                        success = true;
-                        _logger.LogInformation($"Found {langs.Count} languages");
-                        return langs;
-                    }
-                }
-                catch
-                {
+                using HttpClient client = clients[0];
+                string json = await client.GetStringAsync("/languages");
+                List<Language> langs = JsonConvert.DeserializeObject<List<Language>>(json);
+                if (langs == null)
                     i++;
+                else
+                {
+                    _logger.LogInformation($"Found {langs.Count} languages");
+                    return langs;
                 }
             }
+            catch
+            {
+                i++;
+            }
+
             return null;
         }
 
@@ -84,9 +79,7 @@ namespace TranslationService.Services
                 try
                 {
                     List<Language> languages = JsonConvert.DeserializeObject<List<Language>>(result);
-                    Console.WriteLine("Found " + languages.Count + " languages on " + url);
                     stop = DateTime.Now;
-                    Console.WriteLine($"Time: {stop.Millisecond - start.Millisecond}");
                     return new ServerTestResult
                     {
                         Successfull = true,

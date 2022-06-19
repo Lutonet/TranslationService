@@ -10,13 +10,37 @@ namespace TranslationService
         private readonly ISettingsReader _settings;
         private readonly IApiClientsManager _manager;
         private readonly ITranslationMaker _service;
+        private Settings settings;
+        private List<Language> availableLanguages;
+        private List<Language> forTranslation;
+        private List<string> serverAddresses;
+        private List<string> folders;
 
-        public Worker(ILogger<Worker> logger, ISettingsReader settings, IApiClientsManager manager, ITranslationMaker service)
+        public Worker(ILogger<Worker> logger, ISettingsReader settingsReader, IApiClientsManager manager, ITranslationMaker service)
         {
             _logger = logger;
-            _settings = settings;
+            _settings = settingsReader;
             _manager = manager;
             _service = service;
+        }
+
+        public override async Task<Task> StartAsync(CancellationToken cancellationToken)
+        {
+            settings = await _settings.ReadSettings();
+            availableLanguages = await _manager.GetLanguagesAsync(await _manager.GetServers());
+            forTranslation = new List<Language>();
+            folders = settings.TranslationFolders;
+            if (availableLanguages != null)
+            {
+                foreach (Language lang in availableLanguages)
+                {
+                    if (lang.Code == settings.DefaultLanguage || settings.IgnoreLanguages.Where(s => s == lang.Code).Any())
+                        continue;
+                    forTranslation.Add(lang);
+                }
+            }
+
+            return base.StartAsync(cancellationToken);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -24,29 +48,17 @@ namespace TranslationService
             while (!stoppingToken.IsCancellationRequested)
             {
                 // Get Settings
-                Settings set = await _settings.ReadSettings();
-                // Get Languages
-                List<Language> availableLanguages = await _manager.GetLanguagesAsync(await _manager.GetServers());
-                List<Language> forTranslation = new List<Language>();
                 if (availableLanguages != null)
                 {
-                    foreach (Language lang in availableLanguages)
-                    {
-                        if (lang.Code == set.DefaultLanguage || set.IgnoreLanguages.Where(s => s == lang.Code).Any())
-                            continue;
-                        forTranslation.Add(lang);
-                    }
-
-                    // Check Folders
-                    List<string> folders = set.TranslationFolders;
                     foreach (string folder in folders)
                     {
                         Dictionary<string, string> ToUpdate = new Dictionary<string, string>();
-                        List<Models.Translation> ToAdd = new List<Models.Translation>();
-                        List<Models.Translation> ToRemove = new List<Models.Translation>();
-
-                        string defaultPath = Path.Combine(folder, $"{set.DefaultLanguage}.json");
                         Dictionary<string, string> defaultTranslation = new Dictionary<string, string>();
+                        Dictionary<string, string> oldDefault;
+                        List<Translation> ToAdd = new List<Translation>();
+                        List<Translation> ToRemove = new List<Translation>();
+                        string defaultPath = Path.Combine(folder, $"{settings.DefaultLanguage}.json");
+
                         try
                         {
                             string json = await File.ReadAllTextAsync(defaultPath);
@@ -64,7 +76,6 @@ namespace TranslationService
                         // We are in one of folders now we need to do main job
 
                         // check if old translation exists
-                        Dictionary<string, string> oldDefault;
                         if (File.Exists(Path.Combine(defaultPath, "old.json")))
                         {
                             string json = await File.ReadAllTextAsync(Path.Combine(defaultPath, "old.json"));
@@ -144,12 +155,13 @@ namespace TranslationService
 
                             // write changed files
                         }
-
                         _logger.LogInformation($"To add: {ToAdd.Count}, to remove: {ToRemove.Count}, to update {ToUpdate.Count}");
                     }
                 }
                 else
                     _logger.LogInformation("No languages found");
+
+                _logger.LogInformation("Cycle finished");
                 await Task.Delay(60000, stoppingToken);
             }
         }
